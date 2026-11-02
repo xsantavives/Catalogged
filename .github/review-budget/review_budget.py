@@ -143,6 +143,8 @@ class GitHub:
             body=c.get('body')
             if not isinstance(body,str) or not body.startswith('<!-- XSV_REVIEW_BUDGET_V1'): continue
             state=unpack(body)
+            if state.get('pr_number')==num and state.get('linear_issue')!=issue:
+                raise Blocked('PR already bound to another Linear issue; budget cannot reset')
             if state.get('linear_issue')==issue: found.append((c,state))
         if len(found)>1: raise Blocked('Duplicate Linear issue ledgers; owner reconciliation required')
         if not found: return None,empty(self.repo,num,issue)
@@ -187,6 +189,11 @@ def main(argv=None):
             raise Blocked('Not trusted main workflow_dispatch')
         gh=GitHub(os.environ.get('GITHUB_REPOSITORY',''),os.environ.get('GH_TOKEN',''))
         pr=gh.pr(a.pr)
+        # Pin input issue to the uniquely declared delivery at the PR header.
+        intro=(pr.get('title') or '')+'\n'+'\n'.join((pr.get('body') or '').splitlines()[:4])
+        declared=set(re.findall(r'\bXSV-[1-9][0-9]*\b',intro))
+        if a.operation!='status' and declared!={a.linear_issue}:
+            raise Blocked('PR title/introduction must declare one matching XSV issue')
         sha=pr['head']['sha']
         if a.operation!='status' and not a.sha: raise Blocked('Expected SHA required for mutation')
         if a.sha and a.sha!=sha: raise Blocked('HEAD SHA changed before gate')
