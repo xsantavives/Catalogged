@@ -56,7 +56,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
-      group: xsv-review-budget-${{ inputs.pr_number }}
+      group: xsv-review-budget-${{ inputs.linear_issue }}
       cancel-in-progress: false
     permissions:
       contents: read
@@ -75,6 +75,7 @@ jobs:
       - name: Apply serialized review-budget transition
         env:
           GH_TOKEN: ${{ github.token }}
+          XSV_LEDGER_ISSUE: '30'
           OPERATION: ${{ inputs.operation }}
           PR_NUMBER: ${{ inputs.pr_number }}
           LINEAR_ISSUE: ${{ inputs.linear_issue }}
