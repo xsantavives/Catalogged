@@ -179,6 +179,7 @@ def main(argv=None):
         gh=GitHub(os.environ.get('GITHUB_REPOSITORY',''),os.environ.get('GH_TOKEN',''))
         pr=gh.pr(a.pr)
         sha=pr['head']['sha']
+        if a.operation!='status' and not a.sha: raise Blocked('Expected SHA required for mutation')
         if a.sha and a.sha!=sha: raise Blocked('HEAD SHA changed before gate')
         cid,s=gh.ledger(a.pr,a.linear_issue)
         if a.operation=='status':
