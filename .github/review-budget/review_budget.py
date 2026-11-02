@@ -102,6 +102,8 @@ class GitHub:
         if not token or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repo):
             raise Blocked('Missing GitHub credentials or invalid repository')
         self.repo,self.token=repo,token
+        self.ledger_issue=int(os.environ.get('XSV_LEDGER_ISSUE','0'))
+        if self.ledger_issue<=0: raise Blocked('Missing fixed ledger issue ID')
 
     def api(self,method,path,body=None):
         data=json.dumps(body).encode() if body is not None else None
@@ -134,13 +136,20 @@ class GitHub:
         return p
 
     def ledger(self,num,issue):
-        rows=self.pages('/issues/'+str(num)+'/comments')
-        found=[c for c in rows if isinstance(c.get('body'),str) and c['body'].startswith('<!-- XSV_REVIEW_BUDGET_V1')]
-        if len(found)>1: raise Blocked('Duplicate ledgers; owner reconciliation required')
+        # A shared GitHub issue stores one state per Linear issue, across ALL PRs.
+        rows=self.pages('/issues/'+str(self.ledger_issue)+'/comments')
+        found=[]
+        for c in rows:
+            body=c.get('body')
+            if not isinstance(body,str) or not body.startswith('<!-- XSV_REVIEW_BUDGET_V1'): continue
+            state=unpack(body)
+            if state.get('linear_issue')==issue: found.append((c,state))
+        if len(found)>1: raise Blocked('Duplicate Linear issue ledgers; owner reconciliation required')
         if not found: return None,empty(self.repo,num,issue)
-        c=found[0]
+        c,state=found[0]
         if c.get('user',{}).get('login')!='github-actions[bot]': raise Blocked('Untrusted ledger author')
-        return c['id'],validate(unpack(c['body']),self.repo,num,issue)
+        # A second PR for the same Linear issue MUST NOT restart the delivery budget.
+        return c['id'],validate(state,self.repo,num,issue)
 
     def previous_reviews(self,num):
         return [r for r in self.pages('/pulls/'+str(num)+'/reviews')
@@ -160,7 +169,7 @@ class GitHub:
 
     def save(self,num,cid,s):
         body=dict(body=pack(s))
-        return self.api('PATCH','/issues/comments/'+str(cid),body) if cid else self.api('POST','/issues/'+str(num)+'/comments',body)
+        return self.api('PATCH','/issues/comments/'+str(cid),body) if cid else self.api('POST','/issues/'+str(self.ledger_issue)+'/comments',body)
 
 def main(argv=None):
     p=argparse.ArgumentParser()
