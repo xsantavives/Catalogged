@@ -62,7 +62,9 @@ This repository includes a durable budget controller at `.github/workflows/xsv-r
 - Before invoking the independent reviewer, the existing Blocks automation MUST dispatch `reserve-review` on `main` with the exact PR/Linear issue/current HEAD, check the completed workflow run and read the GitHub ledger reservation. On denied, missing or unclear results: `BLOCKED_COUNTER_UNVERIFIED`, without consuming Claude credits.
 - After publishing the SHA-bound formal independent GitHub review with `XSV_INDEPENDENT_REVIEW` and a `VERDICT:` line, invoke `finish-review` with the persisted reservation ID, review ID and verdict. Reconcile the resulting ledger before proceeding.
 - Codex may run the single autonomous repair only after a successful `reserve-repair`; it must invoke `finish-repair` after pushing a changed HEAD. Without this, review two is not eligible.
-- GitHub Actions serializes ledger writes by PR. No agent may create, edit, spoof or delete the ledger comment directly. Missing/invalid ledgers and interrupted reservations require owner reconciliation, not automatic reset.
+- GitHub Actions serializes ledger writes by Linear issue, across multiple PRs. No agent may create, edit, spoof or delete the ledger comment directly. Missing/invalid ledgers and interrupted reservations require owner reconciliation, not automatic reset.
 - This gate does not prove cross-provider independence or Linear authorization, and cannot force a separately configured Blocks automation to call it. GitHub branch protection plus tested Blocks dispatch/poll integration are mandatory before unattended activation.
 
 Review policy remains 2 reviews / 1 repair. No new review automation, paid fallback, automatic merge or deployment is authorized.
+
+Budget records are held in [GitHub ledger issue #30](https://github.com/xsantavives/Catalogged/issues/30); a new PR for the same Linear issue is not a fresh budget. Do not approve resets or manually edit ledger comments.
