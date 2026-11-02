@@ -67,10 +67,12 @@ describe("bounded historical finding summary", () => {
   });
 
   it("keeps structurally truncated comparisons and their returned findings", () => {
-    const variants = Array.from({length: 250}, (_, index) => ({id: index, price: String(index + 1), compare_at_price: null}));
-    const previous = Array.from({length: 250}, (_, index) => ({id: index, price: String(index), compare_at_price: null}));
+    const variantIds = Array.from({length: 250}, (_, index) => index + 1);
+    const variants = variantIds.map((id) => ({id, price: String(id + 1), compare_at_price: null}));
+    const previous = variantIds.map((id) => ({id, price: String(id), compare_at_price: null}));
     const result = summarizeCatalogFindingHistory("PRODUCT", "product-1",
-      [snapshot("new", 2, {variants}), snapshot("old", 1, {variants: previous})], 10, true);
+      [snapshot("new", 2, {variant_gids: variantIds, variants}),
+        snapshot("old", 1, {variant_gids: variantIds, variants: previous})], 10, true);
     expect(result).toMatchObject({comparablePairCount: 1, truncatedComparisonCount: 1});
     const finding = result.findings.find(({code}) => code === "VARIANT_PRICING_CHANGED");
     expect(finding).toMatchObject({comparisonCount: 1, evidenceCount: 200});

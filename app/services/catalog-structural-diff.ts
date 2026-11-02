@@ -46,4 +46,3 @@ export function diffCanonicalJson(previous: JsonValue, current: JsonValue,
   };
   walk(previous, current, "", 0); return {entries, truncated, visitedNodes};
 }
-
