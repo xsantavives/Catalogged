@@ -73,6 +73,11 @@ class BudgetTests(unittest.TestCase):
     def test_wrong_issue_blocks(self):
         with self.assertRaises(Blocked): validate(self.s,REPO,51,'XSV-149')
 
+    def test_second_pr_on_same_issue_cannot_reset_budget(self):
+        self.do('reserve-review')
+        with self.assertRaises(Blocked):
+            validate(self.s, REPO, 52, ISSUE)
+
     def test_roundtrip(self):
         self.assertEqual(self.s,unpack(pack(self.s)))
 
