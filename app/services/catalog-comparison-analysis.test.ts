@@ -41,6 +41,27 @@ describe("identity-aware variant pricing evidence", () => {
       {variants: {}}, product([{id: 1, price: true, compare_at_price: null}])])
       expect(deriveVariantPricingEvidence(state as never, product([variant(1)])).changes).toEqual([]);
   });
+  it("reports valid matched changes while retaining unverified coverage for unrelated invalid evidence", () => {
+    const before = product([variant(1, "10.00"), variant(2, "5.00")], [1, 2]);
+    for (const {after, limits} of [
+      {after: product([variant(1, "12.00"), {id: 2, price: 5, compare_at_price: null}], [1, 2])},
+      {after: product([variant(1, "12.00"), variant(2, "5.00"), variant(3)], [1, 2])},
+      {after: product([variant(1, "12.00"), variant(2, "5.00"), variant(3)], [1, 2, 3]),
+        limits: {maxVariantDetails: 2, maxExpectedVariantIds: 500, maxChanges: 200}},
+    ]) {
+      const analysis = analyzeCatalogComparison("PRODUCT", before, after, {pricing: limits});
+      expect(analysis.pricing?.coverage.status).toBe("UNVERIFIED");
+      expect(analysis.pricing?.changes.map((change) => change.variantId)).toEqual(["gid://shopify/ProductVariant/1"]);
+      expect(analysis.findings.map((finding) => finding.code)).toContain("VARIANT_PRICING_CHANGED");
+    }
+  });
+  it("does not compare an ambiguous duplicate identity even when another variant changes", () => {
+    const before = product([variant(1, "10"), variant(2, "5")], [1, 2]);
+    const after = product([variant(1, "12"), variant(1, "13"), variant(2, "6")], [1, 2]);
+    const result = deriveVariantPricingEvidence(before, after);
+    expect(result.coverage.status).toBe("UNVERIFIED");
+    expect(result.changes.map((change) => change.variantId)).toEqual(["gid://shopify/ProductVariant/2"]);
+  });
   it("classifies partial and unverified coverage and reports explicit bounds", () => {
     const complete = deriveVariantPricingEvidence(product([variant(1), variant(2)], [2, 1]), product([variant(2), variant(1)], [1, 2]));
     expect(complete.coverage.status).toBe("COMPLETE");

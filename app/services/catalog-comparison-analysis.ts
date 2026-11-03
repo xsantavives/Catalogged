@@ -18,7 +18,7 @@ export interface PricingCoverage {status: PricingCoverageStatus; previous: Snaps
 
 type Variant = {id: string; title?: string; sku?: string; price?: Money; compareAt?: Money};
 type Money = {recorded: string | null; canonical: string | null};
-type Parsed = {variants: Map<string, Variant>; coverage: SnapshotPricingCoverage; valid: boolean};
+type Parsed = {variants: Map<string, Variant>; coverage: SnapshotPricingCoverage};
 const object = (value: JsonValue): value is {[key: string]: JsonValue} => !!value && typeof value === "object" && !Array.isArray(value);
 const label = (value: JsonValue | undefined) => typeof value === "string" && value.trim() ? value.slice(0, 120) : undefined;
 const MAX_SAFE_ID = "9007199254740991";
@@ -55,17 +55,20 @@ const money = (value: JsonValue | undefined, nullable: boolean): Money | undefin
 };
 function parse(state: JsonValue, limits: PricingEvidenceLimits): Parsed {
   const variants = new Map<string, Variant>(); const root = object(state) ? state : undefined;
+  const ambiguous = new Set<string>();
   let valid = !!root && Array.isArray(root.variants); let limited = false;
   const details = valid ? root!.variants as JsonValue[] : [];
   if (details.length > Math.max(0, limits.maxVariantDetails)) {limited = true; valid = false;}
   for (const raw of details.slice(0, Math.max(0, limits.maxVariantDetails))) {
     if (!object(raw)) {valid = false; continue;} const id = canonicalProductVariantIdentity(raw);
-    if (!id || variants.has(id)) {valid = false; continue;}
+    if (!id) {valid = false; continue;}
+    if (variants.has(id) || ambiguous.has(id)) {variants.delete(id); ambiguous.add(id); valid = false; continue;}
     const price = money(raw.price, false); const compareAt = money(raw.compare_at_price, true);
-    if (!price || !compareAt) {valid = false; continue;}
+    if (!price || !compareAt) {variants.delete(id); ambiguous.add(id); valid = false; continue;}
     variants.set(id, {id, title: label(raw.title), sku: label(raw.sku), price, compareAt});
   }
   let expected: Set<string> | undefined;
+  if (root && Object.prototype.hasOwnProperty.call(root, "variant_gids") && !Array.isArray(root.variant_gids)) valid = false;
   if (root && Array.isArray(root.variant_gids)) {
     expected = new Set();
     if (root.variant_gids.length > Math.max(0, limits.maxExpectedVariantIds)) {limited = true; valid = false;}
@@ -76,7 +79,7 @@ function parse(state: JsonValue, limits: PricingEvidenceLimits): Parsed {
   const missing = expected ? [...expected].filter((id) => !variants.has(id)).length : 0;
   const unexpected = expected ? [...variants.keys()].filter((id) => !expected.has(id)).length : 0;
   const status: PricingCoverageStatus = limited || !valid || !expected || unexpected ? "UNVERIFIED" : missing ? "PARTIAL" : "COMPLETE";
-  return {variants, valid, coverage: {status, expectedIdentityCount: expected?.size ?? 0,
+  return {variants, coverage: {status, expectedIdentityCount: expected?.size ?? 0,
     detailedIdentityCount: variants.size, expectedMissingDetailCount: missing,
     unexpectedDetailedIdentityCount: unexpected, limited}};
 }
@@ -86,7 +89,7 @@ export function deriveVariantPricingEvidence(previous: JsonValue, current: JsonV
   limits: PricingEvidenceLimits = DEFAULT_PRICING_EVIDENCE_LIMITS) {
   const before = parse(previous, limits); const after = parse(current, limits); const changes: VariantPricingChange[] = [];
   const matched = [...before.variants.keys()].filter((id) => after.variants.has(id)).sort(); let changesTruncated = false;
-  if (before.valid && after.valid) for (const id of matched) for (const field of ["PRICE", "COMPARE_AT_PRICE"] as const) {
+  for (const id of matched) for (const field of ["PRICE", "COMPARE_AT_PRICE"] as const) {
     const oldMoney = field === "PRICE" ? before.variants.get(id)!.price! : before.variants.get(id)!.compareAt!;
     const newMoney = field === "PRICE" ? after.variants.get(id)!.price! : after.variants.get(id)!.compareAt!;
     if (oldMoney.canonical === newMoney.canonical) continue;

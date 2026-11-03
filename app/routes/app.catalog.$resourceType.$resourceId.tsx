@@ -98,14 +98,14 @@ export function CatalogDiffView({diff}: {diff: CatalogStructuralDiff}) {
         <h3 id="pricing-heading">Pricing changes</h3>
         <p><strong>Pricing coverage:</strong> {diff.pricingCoverage.status}</p>
         {diff.pricingCoverage.status === "PARTIAL" ? <p>Pricing evidence is partial because expected variants are missing detailed pricing.</p> : null}
-        {diff.pricingCoverage.status === "UNVERIFIED" ? <p>Pricing completeness cannot be established from the recorded variant identities.</p> : null}
+        {diff.pricingCoverage.status === "UNVERIFIED" ? <p>Pricing completeness cannot be established from the recorded variant details and identities.</p> : null}
         {diff.pricingCoverage.limited ? <p>Pricing evidence reached a pricing-specific safety limit.</p> : null}
         {diff.pricingCoverage.changesTruncated ? <p>Additional identity-matched pricing changes were not returned because the pricing change limit was reached.</p> : null}
         {!diff.pricingChanges.length ? <p>{diff.pricingCoverage.status === "COMPLETE"
           ? "No price or compare-at price changes were found in this comparison."
           : diff.pricingCoverage.status === "PARTIAL"
             ? "No pricing changes were found among represented variants; expected variants are missing detailed pricing."
-            : "No pricing changes were found among observable variants; pricing completeness cannot be established."}</p> : <table>
+            : "No pricing changes were found among identity-matched variants with valid recorded prices; other pricing evidence may be incomplete."}</p> : <table>
           <thead><tr><th>Variant</th><th>SKU</th><th>Stable variant ID</th><th>Field</th><th>Before</th><th>After</th><th>Transition</th></tr></thead>
           <tbody>{diff.pricingChanges.map((change) => <tr key={`${change.variantId}:${change.field}`}>
             <td>{change.title ?? change.variantId}</td><td>{change.sku ?? "—"}</td><td><code>{change.variantId}</code></td>

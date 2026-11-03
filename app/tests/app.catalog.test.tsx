@@ -567,7 +567,23 @@ describe("merchant catalog routes", () => {
     expect(partial).toContain("No pricing changes were found among represented variants");
     const unverifiedState = {variants: before.variants};
     const unverified = renderRoute(<CatalogDiffView diff={exactComparison(CatalogResourceType.PRODUCT, unverifiedState, unverifiedState)} />);
-    expect(unverified).toContain("pricing completeness cannot be established");
+    expect(unverified).toContain("Pricing completeness cannot be established");
+
+    const malformedSibling = {variants: [after.variants[0], {...after.variants[1], price: 20}], variant_gids: ids.slice(0, 2)};
+    const malformed = renderRoute(<CatalogDiffView diff={exactComparison(CatalogResourceType.PRODUCT,
+      {variants: before.variants.slice(0, 2), variant_gids: ids.slice(0, 2)}, malformedSibling)} />);
+    expect(malformed).toContain("Pricing coverage:</strong> UNVERIFIED");
+    expect(malformed).toContain("recorded variant details and identities");
+    expect(malformed).toContain("Named variant");
+    expect(malformed).not.toContain("No pricing changes were found among observable variants");
+
+    const overLimit = renderRoute(<CatalogDiffView diff={exactComparison(CatalogResourceType.PRODUCT,
+      {variants: before.variants.slice(0, 2), variant_gids: ids.slice(0, 2)},
+      {variants: after.variants.slice(0, 2), variant_gids: ids.slice(0, 2)},
+      {pricing: {maxVariantDetails: 1, maxExpectedVariantIds: 500, maxChanges: 200}})} />);
+    expect(overLimit).toContain("pricing-specific safety limit");
+    expect(overLimit).toContain("Named variant");
+    expect(overLimit).not.toContain("No pricing changes were found among observable variants");
 
     const limited = renderRoute(<CatalogDiffView diff={exactComparison(CatalogResourceType.PRODUCT, before, after,
       {pricing: {maxVariantDetails: 250, maxExpectedVariantIds: 500, maxChanges: 1}})} />);
