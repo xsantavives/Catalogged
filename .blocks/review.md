@@ -35,9 +35,9 @@ For each blocking finding supply **severity, file/line, observed versus expected
 - Round 2 (only after the authorized repair on a new SHA): no P0/P1 -> `ACCEPTED_FOR_OWNER_GATE`; any P0/P1 -> `BLOCKED_HUMAN_DECISION_REQUIRED`.
 - A new commit does not reset round counts. Repeated review on the same SHA/policy is a duplicate and must stop.
 - Never open a third review or a second autonomous repair. A separate issue can be authorized by an owner; do not create or approve it yourself.
-- Before work, read **durable, shared iteration counters** outside the agent session. If you cannot verify their persistence and current values, return `BLOCKED_COUNTER_UNVERIFIED` instead of starting another round.
+- Before work, reconcile **GitHub's persisted reviews and repair evidence for the authorized delivery**, including relevant prior PRs and SHAs. If history, provenance, or concurrent session ownership cannot be verified, return `BLOCKED_COUNTER_UNVERIFIED` rather than resetting or guessing.
 - If credits/capacity are exhausted, return `REVIEW_BLOCKED_CAPACITY`, without repeated retries or paid API/inference fallback. Capacity recovery never resets budgets.
-- These instructions do **not** implement persistent counters or provider credit probes. An external gate (Linear/GitHub/Blocks workflow controller) must enforce them before full autonomy.
+- GitHub review history is the pilot's durable record. Linear controls eligibility and WIP (one active reviewer per delivery/repository). This is a **bounded pilot, not an atomic lock**: if two concurrent reviews might occur, stop and reconcile before proceeding.
 
 ## Deliverable
 
@@ -55,16 +55,21 @@ Include repo/PR, reviewed HEAD SHA, authorized issue/scope, reviewer independenc
 - A synthetic fixture, CI green or technical completeness is not proof of a merchant incident or purchase intent.
 - Do not alter frozen fixtures, database migrations or external integrations without explicit approved scope.
 
-## Enforced review and repair budget — GitHub Actions
+## Factory Pilot v1 — GitHub-native review accounting (pending human merge)
 
-This repository includes a durable budget controller at `.github/workflows/xsv-review-budget.yml` and `.github/review-budget/README.md`. These rules **replace the previous assumption that review counters are merely promised by a prompt**:
+The owner approved a simpler review policy on 2026-11-04 for Selthru and Catalogged. **This draft policy is inactive until separately reviewed, merged by the owner and adopted in the Blocks automation instructions.** The legacy GitHub Actions ledger and its comments must not be deleted or manually edited. This text does not grant permissions to merge or deploy.
 
-- Before invoking the independent reviewer, the existing Blocks automation MUST dispatch `reserve-review` on `main` with the exact PR/Linear issue/current HEAD, check the completed workflow run and read the GitHub ledger reservation. On denied, missing or unclear results: `BLOCKED_COUNTER_UNVERIFIED`, without consuming Claude credits.
-- After publishing the SHA-bound formal independent GitHub review with `XSV_INDEPENDENT_REVIEW` and a `VERDICT:` line, invoke `finish-review` with the persisted reservation ID, review ID and verdict. Reconcile the resulting ledger before proceeding.
-- Codex may run the single autonomous repair only after a successful `reserve-repair`; it must invoke `finish-repair` after pushing a changed HEAD. Without this, review two is not eligible.
-- GitHub Actions serializes ledger writes by Linear issue, across multiple PRs. No agent may create, edit, spoof or delete the ledger comment directly. Missing/invalid ledgers and interrupted reservations require owner reconciliation, not automatic reset.
-- This gate does not prove cross-provider independence or Linear authorization, and cannot force a separately configured Blocks automation to call it. GitHub branch protection plus tested Blocks dispatch/poll integration are mandatory before unattended activation.
+**Delivery identity**: owner-approved Linear issue + explicitly authorized deliverable + its linked PR(s), never PR number alone. A new SHA, branch or issue link does not reset review/repair budgets. Only the owner can authorize a new deliverable with fresh 2-review/1-repair limits; preserve any historic consumption from earlier deliveries.
 
-Review policy remains 2 reviews / 1 repair. No new review automation, paid fallback, automatic merge or deployment is authorized.
+**Before each independent Claude review:**
+1. Read current PR HEAD, CI status, existing GitHub formal reviews and relevant PR conversation comments, Linear approvals, and implementation provenance (agent/provider and commit identity).
+2. Build a SHA-bound review history from persisted GitHub formal reviews with XSV_INDEPENDENT_REVIEW and recorded verdict. Count a prior independent review **once**, even if mirrored to Linear/comments. Non-independent Codex-to-Codex verification never counts as the required Claude review. Count repairs from the actual SHA-changing correction and its documented origin, not comments promising one.
+3. Stop if this delivery already has two independent rounds, one repair exhausted before a further repair, unresolved ownership, an unreviewed active session, stale CI, an ambiguous previous review, or concurrent-review risk. Do not launch parallel reviewers. `BLOCKED_COUNTER_UNVERIFIED` remains the conservative response when history is not trustworthy.
+4. Run Claude once against the current HEAD only if no equivalent review exists for that SHA and budget remains. Post one persisted independent formal GitHub review with exact SHA, verdict, reviewer/provider, issue/delivery identity, CI evidence, round number, findings, and next action.
+5. A demonstrated P0/P1 allows one authorized Codex repair on that same PR, followed by at most one second review on the changed SHA. P2/P3 are non-blocking and require separate product authorization if ever pursued. If still failing or owner decision is needed, stop.
 
-Budget records are held in [GitHub ledger issue #30](https://github.com/xsantavives/Catalogged/issues/30); a new PR for the same Linear issue is not a fresh budget. Do not approve resets or manually edit ledger comments.
+**Owner gate**: `ACCEPTED_FOR_OWNER_GATE` means ready for owner assessment; it never authorizes merge, deploy, publication, Shopify configuration change, production writes or spend on paid API fallbacks. No credits => pause without repeated retries.
+
+**History that must survive transition:** For XSV-149, PR #24 already has one independent Claude CHANGES_REQUESTED review at an earlier SHA, and a subsequent repair commit. Do not reset the review/repair count; before allowing the final review, verify who actually implemented the repair and whether Claude is independent. If identity is ambiguous, block for owner clarification. PR #25 must not create fresh rounds or trigger duplicate review for consolidated work.
+
+**Transition:** The legacy .github/workflows/xsv-review-budget.yml is kept for archival/compatibility; it is **not part of the new review dispatch preflight after the human-approved policy switch**. Do not activate the switch from this unmerged PR or allow two concurrent controllers to act. Align the Blocks review automation explicitly at switch time. Branch protection and any existing repository governance remain separate owner-managed requirements; the policy change must not weaken them silently.
