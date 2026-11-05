@@ -55,9 +55,9 @@ Include repo/PR, reviewed HEAD SHA, authorized issue/scope, reviewer independenc
 - A synthetic fixture, CI green or technical completeness is not proof of a merchant incident or purchase intent.
 - Do not alter frozen fixtures, database migrations or external integrations without explicit approved scope.
 
-## Factory Pilot v1 — GitHub-native review accounting (pending human merge)
+## Factory Pilot v1 — GitHub-native review accounting (adopted in main 2026-11-05)
 
-The owner approved a simpler review policy on 2026-11-04 for Selthru and Catalogged. **This draft policy is inactive until separately reviewed, merged by the owner and adopted in the Blocks automation instructions.** The legacy GitHub Actions ledger and its comments must not be deleted or manually edited. This text does not grant permissions to merge or deploy.
+The owner approved the simplified review policy on 2026-11-04 and explicitly authorized a one-time waiver of external review for the two governance-only PRs on 2026-11-05. Selthru PR #57 and Catalogged PR #31 were merged into their respective main branches with passing CI. **This policy is adopted in repository main; the Blocks Claude Review Queue must be explicitly aligned to it before unattended review is considered active.** The legacy GitHub Actions ledger and its comments must not be deleted or manually edited. This text does not grant permissions to merge or deploy product code.
 
 **Delivery identity**: owner-approved Linear issue + explicitly authorized deliverable + its linked PR(s), never PR number alone. A new SHA, branch or issue link does not reset review/repair budgets. Only the owner can authorize a new deliverable with fresh 2-review/1-repair limits; preserve any historic consumption from earlier deliveries.
 
@@ -72,4 +72,4 @@ The owner approved a simpler review policy on 2026-11-04 for Selthru and Catalog
 
 **History that must survive transition:** For XSV-149, PR #24 already has one independent Claude CHANGES_REQUESTED review at an earlier SHA, and a subsequent repair commit. Do not reset the review/repair count; before allowing the final review, verify who actually implemented the repair and whether Claude is independent. If identity is ambiguous, block for owner clarification. PR #25 must not create fresh rounds or trigger duplicate review for consolidated work.
 
-**Transition:** The legacy .github/workflows/xsv-review-budget.yml is kept for archival/compatibility; it is **not part of the new review dispatch preflight after the human-approved policy switch**. Do not activate the switch from this unmerged PR or allow two concurrent controllers to act. Align the Blocks review automation explicitly at switch time. Branch protection and any existing repository governance remain separate owner-managed requirements; the policy change must not weaken them silently.
+**Transition:** The legacy .github/workflows/xsv-review-budget.yml is kept for archival/compatibility; it is **not part of the new review dispatch preflight after the human-approved policy switch**. The policy switch is approved in repository main. Do not run the legacy Actions budget dispatch and the new GitHub-history controller concurrently. Align the Blocks review automation explicitly before enabling the unattended queue; preserve all historical round counts and block if provenance is ambiguous. Branch protection and any existing repository governance remain separate owner-managed requirements; the policy change must not weaken them silently.
