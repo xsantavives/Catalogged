@@ -21,7 +21,8 @@
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "shopify": "shopify",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "config:validate": "node scripts/validate-shopify-config.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -49,6 +50,7 @@
     "globals": "^16.4.0",
     "prettier": "^3.6.2",
     "prisma": "^6.16.2",
+    "smol-toml": "^1.9.1",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.1",
     "vite": "^6.1.0",
