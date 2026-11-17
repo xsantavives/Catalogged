@@ -20,7 +20,7 @@ export interface CatalogWebhookRepository {
   create(data: Prisma.CatalogWebhookCreateInput): Promise<CatalogWebhook>;
   findByWebhookId(webhookId: string): Promise<CatalogWebhook | null>;
   createSnapshotAndMarkProcessed(record: CatalogWebhook): Promise<CatalogWebhook>;
-  markFailed(id: string, error: string): Promise<CatalogWebhook>;
+  markFailed(id: string, error: string): Promise<unknown>;
   recentForShop(shop: string, limit: number, filters?: CatalogDiagnosticFilters): Promise<CatalogWebhook[]>;
 }
 
@@ -32,14 +32,28 @@ export interface CatalogDiagnosticFilters {
 const prismaRepository: CatalogWebhookRepository = {
   create: (data) => prisma.catalogWebhook.create({data}),
   findByWebhookId: (webhookId) => prisma.catalogWebhook.findUnique({where: {webhookId}}),
-  createSnapshotAndMarkProcessed: (record) => prisma.$transaction(async (tx) => {
-    await tx.catalogSnapshot.create({data: snapshotDataFromWebhook(record)});
-    return tx.catalogWebhook.update({
-      where: {id: record.id}, data: {state: WebhookState.PROCESSED, processedAt: new Date(), error: null},
-    });
-  }),
+  createSnapshotAndMarkProcessed: async (record) => {
+    // A retry may have read RECEIVED before another attempt committed its snapshot.
+    // Empty update preserves the immutable projection: https://www.prisma.io/docs/v6/orm/reference/prisma-client-reference#upsert
+    // Submit the complete transaction together so concurrent SQLite writes cannot
+    // occupy the connection while an interactive callback waits to submit its next query.
+    // https://www.prisma.io/docs/v6/orm/prisma-client/queries/transactions#sequential-prisma-client-operations
+    const [, , processed] = await prisma.$transaction([
+      prisma.catalogSnapshot.upsert({
+        where: {sourceWebhookId: record.id}, create: snapshotDataFromWebhook(record), update: {},
+      }),
+      prisma.catalogWebhook.updateMany({
+        where: {id: record.id, state: {not: WebhookState.PROCESSED}},
+        data: {state: WebhookState.PROCESSED, processedAt: new Date(), error: null},
+      }),
+      prisma.catalogWebhook.findUniqueOrThrow({where: {id: record.id}}),
+    ]);
+    return processed;
+  },
   markFailed: (id, error) =>
-    prisma.catalogWebhook.update({where: {id}, data: {state: WebhookState.FAILED, error}}),
+    prisma.catalogWebhook.updateMany({
+      where: {id, state: {not: WebhookState.PROCESSED}}, data: {state: WebhookState.FAILED, error},
+    }),
   recentForShop: (shop, limit, filters = {}) =>
     prisma.catalogWebhook.findMany({where: {shop, ...filters}, orderBy: {receivedAt: "desc"}, take: limit}),
 };
@@ -84,6 +98,9 @@ export async function ingestCatalogWebhook(
     if (!isUniqueConflict(error)) throw error;
     const duplicate = await repository.findByWebhookId(input.webhookId);
     if (!duplicate) throw error;
+    if (duplicate.shop !== input.shop || duplicate.topic !== input.topic) {
+      throw new Error("Webhook identity conflict");
+    }
     if (duplicate.state === WebhookState.PROCESSED) return {record: duplicate, duplicate: true};
     try {
       record = await repository.createSnapshotAndMarkProcessed(duplicate);

@@ -1,5 +1,7 @@
 # Catalogged — Development and QA
 
+The [2026-11-17 owner decision](technical-continuation.md) supersedes historic bet/rebet and prior merchant-validation prerequisites for technical development. Use the authorized Linear scope; no new bet is required. Independent review, access permissions and evidence requirements still apply.
+
 ## Standard execution
 1. Read root AGENTS.md, the linked Notion product decision and this contract; inspect repo, active PRs and current Linear bet.
 2. Confirm a single owner, one accepted issue, allowed paths, non-goals, exact acceptance evidence and a worktree dedicated to the task.

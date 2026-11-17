@@ -1,5 +1,7 @@
 # Catalogged Technical State and Active Bet
 
+> Current authority, 2026-11-17: the owner authorized continued technical development within the existing Catalogged project scope in [XSV-152](https://linear.app/xsvlabs/issue/XSV-152/cat-merchant-discovery-continuation-signal-and-overdue-bet-decision), retiring bet/rebet and prior merchant-validation prerequisites for technical work. The bet and conditional-work rules below are historical where they conflict with that decision. The original circuit breaker is not extended. See [technical continuation](../technical-continuation.md) for the current inspected state. Product no-gos, real access/consent and independent evidence remain required.
+
 ## Purpose and authority
 
 This file is a repository-local technical record. It is **not** the canonical product roadmap and does not authorize future product work.
